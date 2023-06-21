@@ -36,7 +36,7 @@ class CharacterViewModel @Inject constructor(
 
     val state: StateFlow<CharacterState> = combine(
         query,
-        query.debounce(125L).flatMapLatest(charaRepository::getCharacters),
+        charaRepository.getCharacters(query.debounce(125L)),
         selectedCharacter,
         ::processResponse
     ).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), CharacterState())

@@ -7,6 +7,7 @@ import com.sample.simpsonsviewer.model.catchAsValueResponse
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -20,7 +21,7 @@ class CharacterRepository @Inject constructor(
     private val duckDuckGoApi: DuckDuckGoApi,
     private val characterDao: CharacterDao
 ) {
-    fun getCharacters(query: String): Flow<ValueResponse<List<CharacterEntity>>> =
+    fun getCharacters(query: Flow<String>): Flow<ValueResponse<List<CharacterEntity>>> =
         merge(getCharactersFromDatabase(query), fetchCharacters())
             .onStart { emit(ValueResponse.Loading) }
             .catchAsValueResponse()
@@ -33,16 +34,17 @@ class CharacterRepository @Inject constructor(
             }.flowOn(Dispatchers.IO)
 
 
-    private fun getCharactersFromDatabase(query: String): Flow<ValueResponse<List<CharacterEntity>>> {
-        val flow = if (query.isEmpty()) characterDao.getAll() else characterDao.search(query)
-        return flow.map { drivers ->
+    private fun getCharactersFromDatabase(queryFlow: Flow<String>): Flow<ValueResponse<List<CharacterEntity>>> =
+        queryFlow.flatMapLatest { query ->
+            val flow = if (query.isEmpty()) characterDao.getAll() else characterDao.search(query)
+            flow.map { drivers ->
                 if (drivers.isEmpty() && query.isNotEmpty()) {
                     ValueResponse.Empty
                 } else {
                     ValueResponse.Data(drivers)
                 }
             }
-    }
+        }
 
 
     private fun fetchCharacters() = flow {
